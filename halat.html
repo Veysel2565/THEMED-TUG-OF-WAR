@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Themed Tug-of-War: Levels</title>
+    <style>
+        body {
+            display: flex; flex-direction: column; align-items: center;
+            background-color: #0d1117; color: white; font-family: 'Segoe UI', sans-serif; margin: 0;
+        }
+        #game-info { margin-top: 10px; text-align: center; }
+        #level-name { font-size: 24px; color: #f1c40f; font-weight: bold; text-transform: uppercase; }
+        
+        #game-container { position: relative; margin-top: 10px; }
+        canvas {
+            background: #27ae60; border: 8px solid #3e2723; border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        
+        .ui-container { display: flex; width: 1000px; justify-content: space-between; margin-top: 15px; gap: 20px; }
+        .panel { 
+            background: #161b22; padding: 20px; border-radius: 15px; width: 45%; 
+            text-align: center; border: 2px solid #30363d;
+        }
+        .word { font-size: 40px; color: #58a6ff; margin: 10px 0; font-weight: bold; letter-spacing: 12px; text-shadow: 2px 2px #000; }
+        
+        input { 
+            width: 85%; padding: 15px; font-size: 24px; text-align: center; 
+            border-radius: 10px; border: none; background: #c9d1d9; outline: none;
+        }
+        input:focus { box-shadow: 0 0 10px #58a6ff; }
+        input:disabled { opacity: 0.3; }
+
+        .error-msg { color: #f85149; font-size: 14px; margin-top: 10px; font-weight: bold; visibility: hidden; }
+        
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            justify-content: center; align-items: center; border-radius: 20px; z-index: 10;
+        }
+        button {
+            padding: 15px 40px; font-size: 20px; cursor: pointer; background: #238636;
+            color: white; border: none; border-radius: 8px; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-info">
+        <h1>THEMED TUG-OF-WAR</h1>
+        <div id="level-name">LEVEL 1: ANIMALS</div>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="gameCanvas" width="1000" height="380"></canvas>
+        <div id="overlay">
+            <h2 id="overlayText" style="font-size: 48px;"></h2>
+            <button id="nextBtn" onclick="nextStep()">SIRADAKİ TEMA</button>
+        </div>
+    </div>
+
+    <div class="ui-container">
+        <div class="panel">
+            <h2 style="color:#58a6ff">MAVİ TAKIM</h2>
+            <div id="leftScrambled" class="word">---</div>
+            <input type="text" id="leftInput" placeholder="Kelimeyi çöz..." autocomplete="off">
+            <div id="leftError" class="error-msg">YANLIŞ! Sıra karşıya geçti.</div>
+        </div>
+        <div class="panel">
+            <h2 style="color:#f85149">KIRMIZI TAKIM</h2>
+            <div id="rightScrambled" class="word">---</div>
+            <input type="text" id="rightInput" placeholder="Kelimeyi çöz..." autocomplete="off">
+            <div id="rightError" class="error-msg">YANLIŞ! Sıra karşıya geçti.</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // --- TEMALAR VE KELİME HAVUZLARI ---
+        const levels = [
+            { name: "Level 1: Animals", words: ["TIGER", "HORSE", "ZEBRA", "SNAKE", "WHALE", "EAGLE", "PANDA", "SHARK", "CAMEL", "SHEEP", "MOUSE", "RABBIT", "LION", "DUCK", "GOAT", "FROG", "WOLF", "BEAR", "DEER", "OWL"] },
+            { name: "Level 2: Fruits & Vegetables", words: ["APPLE", "LEMON", "GRAPE", "ONION", "PEACH", "MANGO", "MELON", "GARLIC", "POTATO", "TOMATO", "CHERRY", "BANANA", "ORANGE", "CARROT", "RADISH", "OLIVE", "CELERY", "PEPPER", "BERRY", "PLUM"] },
+            { name: "Level 3: Home & Furniture", words: ["CHAIR", "TABLE", "BED", "SOFA", "CLOCK", "LAMP", "DOOR", "SHELF", "DESK", "VASES", "STOVE", "RADIO", "PHONE", "PILLOW", "CARPET", "MIRROR", "WINDOW", "FRIDGE", "CLOSET", "DRAWER"] },
+            { name: "Level 4: Colors", words: ["RED", "BLUE", "GREEN", "BLACK", "WHITE", "BROWN", "PINK", "PURPLE", "ORANGE", "YELLOW", "GRAY", "SILVER", "GOLD", "BEIGE", "MAROON", "VIOLET", "CYAN", "NAVY", "BRONZE", "AZURE"] }
+        ];
+
+        let currentLevelIndex = 0;
+        let leftPool = [], rightPool = [];
+        let ropeX = 500;
+        let animOffset = 0;
+        let gameOver = false;
+
+        function initLevel() {
+            const currentWords = [...levels[currentLevelIndex].words].sort(() => Math.random() - 0.5);
+            leftPool = currentWords.slice(0, 10);
+            rightPool = currentWords.slice(10, 20);
+            ropeX = 500;
+            gameOver = false;
+            document.getElementById('level-name').innerText = levels[currentLevelIndex].name;
+            document.getElementById('overlay').style.display = "none";
+            updateWords();
+        }
+
+        function scramble(w) {
+            let s = w.split('').sort(() => Math.random() - 0.5).join('');
+            return s === w ? scramble(w) : s;
+        }
+
+        function updateWords() {
+            document.getElementById('leftScrambled').innerText = leftPool.length > 0 ? scramble(leftPool[0]) : "BİTTİ!";
+            document.getElementById('rightScrambled').innerText = rightPool.length > 0 ? scramble(rightPool[0]) : "BİTTİ!";
+        }
+
+        function drawRope() {
+            // Gerçekçi Halat
+            ctx.save();
+            ctx.lineWidth = 16;
+            ctx.strokeStyle = "#5d4037"; // Halat koyu renk
+            ctx.beginPath();
+            ctx.setLineDash([12, 4]); // Sarmal doku
+            ctx.moveTo(ropeX - 600, 240);
+            ctx.lineTo(ropeX + 600, 240);
+            ctx.stroke();
+            
+            // Halatın ortasındaki "Düğüm" (Sarı bayrak kalktı)
+            ctx.setLineDash([]);
+            ctx.fillStyle = "#3e2723";
+            ctx.beginPath();
+            ctx.arc(ropeX, 240, 12, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#8d6e63"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawPlayer(x, color, side, isFront) {
+            const stretch = Math.sin(animOffset) * (isFront ? 12 : 8);
+            const headX = side === 'left' ? x - stretch : x + stretch;
+
+            // Kafa
+            ctx.fillStyle = "#ffe0bd";
+            ctx.beginPath(); ctx.arc(headX, 170, 18, 0, Math.PI*2); ctx.fill();
+            
+            // Gövde
+            ctx.strokeStyle = color; ctx.lineWidth = 12; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(headX, 190); ctx.lineTo(x, 260); ctx.stroke();
+
+            // Kollar (Halatı tutan)
+            ctx.strokeStyle = "#ffe0bd"; ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(headX, 210);
+            ctx.lineTo(ropeX + (side === 'left' ? (x - ropeX + 40) : (x - ropeX - 40)), 240);
+            ctx.stroke();
+
+            // Bacaklar
+            ctx.strokeStyle = "#2c3e50"; ctx.lineWidth = 9;
+            ctx.beginPath();
+            ctx.moveTo(x, 260); ctx.lineTo(x - 20, 320);
+            ctx.moveTo(x, 260); ctx.lineTo(x + 20, 320);
+            ctx.stroke();
+
+            // Ayak Ucu (Kaybetme Noktası)
+            const footX = side === 'left' ? x + 20 : x - 20;
+            if(isFront) {
+                if(side === 'left' && footX >= 500) triggerWin("KIRMIZI TAKIM KAZANDI!");
+                if(side === 'right' && footX <= 500) triggerWin("MAVİ TAKIM KAZANDI!");
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            animOffset += 0.12;
+
+            // Zemin
+            ctx.fillStyle = "#27ae60"; ctx.fillRect(0, 320, 1000, 60);
+            
+            // Orta Çizgi (Limit)
+            ctx.fillStyle = "#f85149"; ctx.fillRect(498, 120, 4, 260);
+
+            drawRope();
+
+            // Oyuncular
+            drawPlayer(ropeX - 220, "#58a6ff", 'left', true);
+            drawPlayer(ropeX - 320, "#58a6ff", 'left', false);
+            drawPlayer(ropeX + 220, "#f85149", 'right', true);
+            drawPlayer(ropeX + 320, "#f85149", 'right', false);
+
+            if(!gameOver) requestAnimationFrame(draw);
+        }
+
+        function triggerWin(msg) {
+            gameOver = true;
+            document.getElementById('overlay').style.display = "flex";
+            document.getElementById('overlayText').innerText = msg;
+            
+            if(currentLevelIndex >= levels.length - 1) {
+                document.getElementById('overlayText').innerText += "\nOYUN BİTTİ!";
+                document.getElementById('nextBtn').innerText = "BAŞTAN BAŞLA";
+            }
+        }
+
+        function nextStep() {
+            if(currentLevelIndex >= levels.length - 1) {
+                currentLevelIndex = 0;
+            } else {
+                currentLevelIndex++;
+            }
+            initLevel();
+            draw();
+        }
+
+        function checkAnagram(input, target) {
+            const sortedInput = input.toUpperCase().split('').sort().join('');
+            const sortedTarget = target.split('').sort().join('');
+            // Hem anagram mı hem de mevcut seviyenin kelime listesinde var mı?
+            return sortedInput === sortedTarget && levels[currentLevelIndex].words.includes(input.toUpperCase());
+        }
+
+        function penalty(side) {
+            const input = document.getElementById(side + 'Input');
+            const error = document.getElementById(side + 'Error');
+            input.disabled = true;
+            error.style.visibility = "visible";
+            setTimeout(() => {
+                input.disabled = false;
+                error.style.visibility = "hidden";
+                input.value = "";
+                input.focus();
+            }, 2000);
+        }
+
+        function handleAction(side) {
+            const input = document.getElementById(side + 'Input');
+            const pool = side === 'left' ? leftPool : rightPool;
+            if(pool.length === 0 || gameOver) return;
+
+            if(checkAnagram(input.value, pool[0])) {
+                side === 'left' ? (ropeX -= 60, leftPool.shift()) : (ropeX += 60, rightPool.shift());
+                input.value = "";
+                updateWords();
+                if(leftPool.length === 0 || rightPool.length === 0) {
+                    triggerWin(side === 'left' ? "MAVİ TAKIM TEMAYI BİTİRDİ!" : "KIRMIZI TAKIM TEMAYI BİTİRDİ!");
+                }
+            } else {
+                penalty(side);
+            }
+        }
+
+        document.getElementById('leftInput').onkeyup = (e) => { if(e.key === "Enter") handleAction('left'); };
+        document.getElementById('rightInput').onkeyup = (e) => { if(e.key === "Enter") handleAction('right'); };
+
+        initLevel();
+        draw();
+    </script>
+</body>
+</html>
